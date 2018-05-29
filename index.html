@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Flight map</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <meta charset="utf-8">
+    <style>
+      #map { height: 100%; }
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #info { width: 100px; }
+
+    </style>
+  </head>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBU9Rau30qUb17uwOvrOVoBsmImuTQeZ8o&callback=initMap"
+  async defer></script>
+
+  <script>
+    var map, airports, flights, airportIcon, flightIcon, Testicon;
+    var airportsMarkers = {};
+    var airplanesMarkers = {};
+    var lastWindow = null;
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {lat: -34.397, lng: 150.644},
+        zoom: 8
+      });
+
+      airportIcon = new google.maps.MarkerImage(
+        "https://png.icons8.com/material/40/FF1493/region-code.png"
+      );
+
+      flightIcon = {
+        path: "M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z",
+        anchor: new google.maps.Point(200, 250),
+        scale: 0.07,
+        fillColor: "#FF5A00",
+        fillOpacity: 1.0,
+        strokeColor: "#FF5A00",
+        rotation: 0
+      };
+
+      bounds = new google.maps.LatLngBounds();
+    }
+
+    function drawAirport(obj) {
+      var infoWindow = new google.maps.InfoWindow(
+        {content:
+          "<div id='info'><h3>"+obj["airport_code"]+"</h3><p>"+obj["name"]+"</p></div>"
+        });
+      var marker = new google.maps.Marker({
+        position: {
+          lat: obj["airport_position"][0],
+          lng: obj["airport_position"][1]
+        },
+        map: map,
+        icon: airportIcon,
+        animation: google.maps.Animation.DROP,
+        infowindow: infoWindow
+      });
+      bounds.extend(marker.position);
+      google.maps.event.addListener(marker, 'click', function() {
+         if (lastWindow) lastWindow.close();
+         this.infowindow.open(map, this);
+         lastWindow=this.infowindow;
+      });
+
+      airportsMarkers[obj["airport_code"]] = marker;
+    }
+
+    $(function () {
+      var socket = io();
+      var socket2 = io('wss://integracion-tarea-3.herokuapp.com', { "path" : "/flights" });
+
+      socket2.on('connect', () => {
+        socket2.emit('FLIGHTS');
+        socket2.emit('AIRPORTS');
+      });
+      // socket2.on('disconnect', () => {
+      //   socket2.open();
+      // });
+
+      socket2.on('AIRPORTS', function(msg){
+        airports = msg;
+
+        // Dibujar los aeropuertos
+        for (key in airports){
+          drawAirport(airports[key]);
+        }
+
+        // Centralizar el mapa según los aeropuertos
+        map.fitBounds(bounds);
+      });
+
+      socket2.on('FLIGHTS', function(msg){
+        flights = msg;
+
+        // Dibujar línea entre origin y destination
+        for (i in flights){
+          const from = flights[i]['origin']['airport_position'];
+          const to = flights[i]['destination']['airport_position'];
+
+          // Dibujar línea teórica
+          var polyline = new google.maps.Polyline({
+            map: map,
+            path: [
+              {lat: from[0], lng: from[1]},
+              {lat: to[0], lng: to[1]}
+            ],
+            strokeColor: "#00FF7F",
+            strokeOpacity: 1.0,
+            strokeWeight: 4
+          });
+
+          // Crear markers de aviones
+          var infoWindow = new google.maps.InfoWindow(
+            {content:
+              "<div id='info'><h3>"+flights[i]["code"]+"</h3>"+
+              "<p>Aerolínea: "+flights[i]["airline"]+"</p>"+
+              "<p>Avión: "+flights[i]["plane"]+"</p>"+
+              "<p>Asientos: "+flights[i]["seats"].toString()+"</p></div>"
+            });
+          var marker = new google.maps.Marker({
+            map: map,
+            icon: flightIcon,
+            animation: google.maps.Animation.DROP,
+            infowindow: infoWindow,
+          });
+          airplanesMarkers[flights[i]["code"]] = marker;
+          google.maps.event.addListener(marker, 'click', function() {
+             if (lastWindow) lastWindow.close();
+             this.infowindow.open(map, this);
+             lastWindow=this.infowindow;
+          });
+        }
+      });
+
+      socket2.on('POSITION', function(msg){
+        const code = msg['code'];
+        const pos = msg['position'];
+        const oldpos = airplanesMarkers[code].getPosition();
+        airplanesMarkers[code].setPosition({lat: pos[0], lng: pos[1]});
+
+        // Dibujar línea real
+        var polyline = new google.maps.Polyline({
+          map: map,
+          path: [
+            oldpos,
+            {lat: pos[0], lng: pos[1]}
+          ],
+          strokeColor: "#DC143C",
+          strokeOpacity: 1.0,
+          strokeWeight: 4
+        });
+
+        // Rotar el icon
+        const alfa = Math.atan2(pos[1] - oldpos.lng(), pos[0] - oldpos.lat()) * 180 / Math.PI;
+        airplanesMarkers[code].setIcon({
+          path: "M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z",
+          anchor: new google.maps.Point(200, 250),
+          scale: 0.07,
+          fillColor: "#FF5A00",
+          fillOpacity: 1.0,
+          strokeColor: "#FF5A00",
+          rotation: alfa-90
+        });
+
+      });
+
+    });
+  </script>
+
+  <body>
+    <div id="map"></div>
+  </body>
+</html>
