@@ -77,18 +77,17 @@
     }
 
     $(function () {
-      var socket = io();
-      var socket2 = io('wss://integracion-tarea-3.herokuapp.com', { "path" : "/flights" });
+      var socket = io('wss://integracion-tarea-3.herokuapp.com', { "path" : "/flights" });
 
-      socket2.on('connect', () => {
-        socket2.emit('FLIGHTS');
-        socket2.emit('AIRPORTS');
+      socket.on('connect', () => {
+        socket.emit('FLIGHTS');
+        socket.emit('AIRPORTS');
       });
-      // socket2.on('disconnect', () => {
-      //   socket2.open();
+      // socket.on('disconnect', () => {
+      //   socket.open();
       // });
 
-      socket2.on('AIRPORTS', function(msg){
+      socket.on('AIRPORTS', function(msg){
         airports = msg;
 
         // Dibujar los aeropuertos
@@ -100,7 +99,7 @@
         map.fitBounds(bounds);
       });
 
-      socket2.on('FLIGHTS', function(msg){
+      socket.on('FLIGHTS', function(msg){
         flights = msg;
 
         // Dibujar línea entre origin y destination
@@ -143,7 +142,7 @@
         }
       });
 
-      socket2.on('POSITION', function(msg){
+      socket.on('POSITION', function(msg){
         const code = msg['code'];
         const pos = msg['position'];
         const oldpos = airplanesMarkers[code].getPosition();
