@@ -145,32 +145,39 @@
       socket.on('POSITION', function(msg){
         const code = msg['code'];
         const pos = msg['position'];
-        const oldpos = airplanesMarkers[code].getPosition();
-        airplanesMarkers[code].setPosition({lat: pos[0], lng: pos[1]});
 
-        // Dibujar línea real
-        var polyline = new google.maps.Polyline({
-          map: map,
-          path: [
-            oldpos,
-            {lat: pos[0], lng: pos[1]}
-          ],
-          strokeColor: "#DC143C",
-          strokeOpacity: 1.0,
-          strokeWeight: 4
-        });
+        if (airplanesMarkers[code]) {
+          const oldpos = airplanesMarkers[code].getPosition();
+          airplanesMarkers[code].setPosition({lat: pos[0], lng: pos[1]});
 
-        // Rotar el icon
-        const alfa = Math.atan2(pos[1] - oldpos.lng(), pos[0] - oldpos.lat()) * 180 / Math.PI;
-        airplanesMarkers[code].setIcon({
-          path: "M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z",
-          anchor: new google.maps.Point(200, 250),
-          scale: 0.07,
-          fillColor: "#FF5A00",
-          fillOpacity: 1.0,
-          strokeColor: "#FF5A00",
-          rotation: alfa-90
-        });
+          if (oldpos) {
+            // Dibujar línea real
+            var polyline = new google.maps.Polyline({
+              map: map,
+              path: [
+                oldpos,
+                {lat: pos[0], lng: pos[1]}
+              ],
+              strokeColor: "#DC143C",
+              strokeOpacity: 1.0,
+              strokeWeight: 4
+            });
+
+            // Rotar el icon
+            const alfa = Math.atan2(pos[1] - oldpos.lng(), pos[0] - oldpos.lat()) * 180 / Math.PI;
+
+            airplanesMarkers[code].setIcon({
+              path: "M510,255c0-20.4-17.85-38.25-38.25-38.25H331.5L204,12.75h-51l63.75,204H76.5l-38.25-51H0L25.5,255L0,344.25h38.25    l38.25-51h140.25l-63.75,204h51l127.5-204h140.25C492.15,293.25,510,275.4,510,255z",
+              anchor: new google.maps.Point(200, 250),
+              scale: 0.07,
+              fillColor: "#FF5A00",
+              fillOpacity: 1.0,
+              strokeColor: "#FF5A00",
+              rotation: alfa-90
+            });
+          }
+
+        }
 
       });
 
